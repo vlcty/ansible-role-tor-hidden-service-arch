@@ -1,0 +1,14 @@
+---
+galaxy_info:
+  author: Josef 'veloc1ty' Stautner
+  description: Installs tor hidden services
+  company: veloc1ty networks
+  license: MIT
+  min_ansible_version: 2.4
+  platforms:
+  - name: Archlinux
+    versions:
+        - all
+  categories:
+  - tor
+dependencies: []
