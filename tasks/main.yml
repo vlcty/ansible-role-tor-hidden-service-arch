@@ -1,0 +1,90 @@
+---
+- assert:
+    that: hidden_services is defined
+
+- name: Install tor
+  pacman:
+      name: tor
+      state: present
+
+- name: Install haveged
+  pacman:
+      name: haveged
+      state: present
+  when: hidden_services_boost == true
+
+- name: Create tor.d directory
+  file:
+      path: /etc/tor.d
+      state: directory
+      owner: root
+      group: root
+      mode: 0755
+
+- name: Add include of /etc/tor.d into torrc
+  lineinfile:
+      path: /etc/tor/torrc
+      line: "%include /etc/tor.d"
+      state: present
+  notify: Restart tor
+
+- name: Creating tor.d config entries
+  template:
+      src: tord-template.j2
+      dest: "/etc/tor.d/{{ service.key }}"
+      owner: root
+      group: root
+      mode: 0644
+  with_dict: "{{ hidden_services }}"
+  no_log: true
+  loop_control:
+      loop_var: service
+  notify: Restart tor
+
+- name: Create hidden service directories
+  file:
+      path: "/var/lib/tor/{{ service.key }}"
+      state: directory
+      owner: tor
+      group: tor
+      mode: 0700
+  with_dict: "{{ hidden_services }}"
+  loop_control:
+      loop_var: service
+  notify: Restart tor
+  no_log: true
+
+- name: Write private keys
+  copy:
+      content: "{{ service.value.key }}"
+      dest: "/var/lib/tor/{{ service.key }}/private_key"
+      owner: tor
+      group: tor
+      mode: 0600
+  with_dict: "{{ hidden_services }}"
+  loop_control:
+      loop_var: service
+  no_log: true
+
+- name: Start tor
+  systemd:
+      name: tor
+      state: started
+      enabled: true
+      masked: false
+
+- name: Getting onion addresses
+  shell: "cat /var/lib/tor/{{ service.key }}/hostname"
+  changed_when: false
+  with_dict: "{{ hidden_services }}"
+  loop_control:
+      loop_var: service
+  register: hshostnames
+  no_log: true
+
+- name: Printing out onion addresses
+  debug:
+      msg: "Tor HS {{ item.0 }} is reachable under {{ item.1 }}"
+  with_together:
+      - "{{ hshostnames.results | map(attribute='_ansible_item_label') | map(attribute='key') | list }}"
+      - "{{ hshostnames.results | map(attribute='stdout') | list }}"

@@ -1,0 +1,9 @@
+#
+# Managed by ansible
+# Role: tor-hidden-service-arch
+#
+
+HiddenServiceDir /var/lib/tor/{{ service.key }}/
+{% for access in service.value.access %}
+HiddenServicePort {{ access.external }} {{ access.internal }}
+{% endfor %}
